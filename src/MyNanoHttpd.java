@@ -1,4 +1,8 @@
 import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStreamReader;
 import java.lang.Override;
 import java.lang.Runnable;
 import java.lang.Thread;
@@ -70,6 +74,30 @@ public class MyNanoHttpd {
                     splitbyte ++;
                 }
                 splitbyte++;// first byte after /r/n/r/n
+
+                //write part of the body already read to ByteArrayOutputStream f
+                ByteArrayOutputStream f = new ByteArrayOutputStream();
+                if (splitbyte < rlen) f.write(buf, splitbyte, rlen-splitbyte);
+
+                //difference between ff and chrome opera
+                if (splitbyte < rlen)
+                    size -= rlen - splitbyte + 1;
+                else if (!sbfound || size == 0x7FFFFFFFFFFFFFFFL)
+                    size = 0;
+
+                buf = new byte[512];
+                while (rlen >= 0 && size > 0) {
+                    rlen = is.read(buf, 0, 512);
+                    size -= rlen;
+                    if (rlen > 0)
+                        f.write(buf, 0, rlen);
+                }
+
+                byte[] fbuf = f.toByteArray();
+
+                //buffered
+                ByteArrayInputStream bin = new ByteArrayInputStream(fbuf);
+                BufferedReader in = new BufferedReader(new InputStreamReader(bin));
 
             } catch (IOException ioe) {}
         }
