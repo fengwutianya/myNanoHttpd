@@ -1,12 +1,11 @@
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.Override;
 import java.lang.Runnable;
 import java.lang.Thread;
 import java.lang.Throwable;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Properties;
 
 /**
  * Created by xuan on 2016/12/26 0026.
@@ -39,7 +38,39 @@ public class MyNanoHttpd {
                 int rlen = is.read(buf, 0, bufsize);
                 if (rlen <= 0) return;
 
-                //
+                //parse the header
+                ByteArrayInputStream hbis = new ByteArrayInputStream(buf, 0, rlen);
+                BufferedReader hin = new BufferedReader(new InputStreamReader(hbis));
+                Properties pre = new Properties();//don't know
+                Properties parms = new Properties();
+                Properties header = new Properties();
+                Properties files = new Properties();
+
+                //decode the header into java properties
+                decodeHeader(hin, pre, parms, header);
+                String method = pre.getProperty("method");
+                String uri = pre.getProperty("uri");
+
+                long size = 0x7FFFFFFFFFFFFFFFL;
+                String contentLength = header.getProperty("content-length");
+                if (contentLength != null) {
+                    try {
+                        size = Integer.parseInt(contentLength);
+                    } catch (NumberFormatException nfe) {}
+                }
+
+                //looking for /r/n/r/n
+                int splitbyte = 0;
+                boolean sbfound = false;
+                while (splitbyte < rlen) {
+                    if (buf[splitbyte] == '\r' && buf[++splitbyte] == '\n' && buf[++splitbyte] == '\r' && buf[++splitbyte] == '\n') {
+                        sbfound = true;
+                        break;
+                    }
+                    splitbyte ++;
+                }
+                splitbyte++;// first byte after /r/n/r/n
+
             } catch (IOException ioe) {}
         }
     }
@@ -67,7 +98,7 @@ public class MyNanoHttpd {
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].equalsIgnoreCase("-p"))
-                port = args[i+1];
+                port = Integer.parseInt(args[i+1]);
             else if (args[i].equalsIgnoreCase("-d"))
                 wwwroot = new File(args[i+1]);
         }
